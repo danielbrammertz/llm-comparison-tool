@@ -111,17 +111,9 @@ prepare_session_state()
 configuration()
 
 user_input = st.text_area("Enter your request", placeholder="Enter here the user request", height=100)
-st.error(
-    ":no_entry_sign: Do not enter private or sensitive information. What you type here is going to external servers."
-)
-
-read_and_agreed = st.checkbox("There is no private or sensitive information in my request")
 send_button = st.button("Send Request")
 
 if send_button:
-    if not read_and_agreed:
-        st.error("Please confirm that there is no private or sensitive information in your request")
-        st.stop()
     if not st.session_state.models:
         st.error("Please select at least one model")
         st.stop()
