@@ -153,26 +153,30 @@ def available_models() -> list[Model]:
     return api_data_list
 
 
-def cost_and_stats(response: LLMResponse) -> LLMCostAndStats:
-    """Retrieve costs and stats for the LLM response."""
+def cost_and_stats(response: LLMResponse) -> LLMCostAndStats | None:
+    """Retrieve costs and stats for the LLM response.
+    
+    Returns None if the generation data is not available (e.g., expired or invalid ID).
+    """
 
     # Always get the API key from the environment in case it changed
     headers = {
         "Authorization": f"Bearer {_get_api_key()}",
     }
 
-    # Implementation notes:
-    #   - We let `requests` manage the connection pool for us.
-    #   - The default configuration allows up to 10 simultaneous connections to the same host, which should be enough
-    #     for our needs.
-    #   - We use a large timeout because some LLMs take a long time to respond.
     start_time = time.time()
-    http_response = requests.get(f"{_OPENROUTER_API}/generation?id={response.id}", headers=headers, timeout=360)
-    response_time = time.time() - start_time
-    # We let exceptions propagate for now because this is a developement tool
-    # When/if we let end users (or less technical users) use this code, we handle exceptions more gracefully
-    # Note that the exception will stop the parallel execution of the LLMs, which is ok in our case
-    http_response.raise_for_status()
+    try:
+        http_response = requests.get(f"{_OPENROUTER_API}/generation?id={response.id}", headers=headers, timeout=360)
+        response_time = time.time() - start_time
+        
+        if http_response.status_code == 404:
+            print(f"Warning: Generation data not found for ID {response.id}")
+            return None
+            
+        http_response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Warning: Failed to fetch generation data for ID {response.id}: {str(e)}")
+        return None
 
     payload = http_response.json()["data"]
 

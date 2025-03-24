@@ -80,7 +80,8 @@ def get_llm_response(user_input: str) -> dict[llm.Model, llm.LLMResponse]:
 def get_cost_and_stats(response: dict[llm.Model, llm.LLMResponse]) -> dict[llm.Model, llm.LLMCostAndStats]:
     with st.spinner("Calculating cost and stats..."):
         cost_and_stats = llm.cost_and_stats_multiple(response)
-    return cost_and_stats
+        # Filter out None values
+        return {model: stats for model, stats in cost_and_stats.items() if stats is not None}
 
 
 def show_response(response: dict[llm.Model, llm.LLMResponse], cost_and_stats: dict[llm.Model, llm.LLMCostAndStats]):
@@ -88,29 +89,22 @@ def show_response(response: dict[llm.Model, llm.LLMResponse], cost_and_stats: di
     response = dict(sorted(response.items(), key=lambda x: x[0].name))
 
     # Show the response side by side by model
-    cols = st.columns(len(response))
-    for i, (m, r) in enumerate(response.items()):
-        with cols[i]:
-            st.markdown(f"### {m.name}")
-            with st.expander("Click to show/hide the raw response"):
-                st.write("LLM raw request data")
-                st.json(r.raw_request, expanded=False)
-                st.write("LLM raw response data")
-                st.json(r.raw_response, expanded=False)
-                st.write("Cost and stats raw response")
-                st.json(cost_and_stats[m].raw_response, expanded=False)
-            c = cost_and_stats[m]
-            st.markdown(
-                (
-                    "GPT tokens | Native tokens | Cost | Elapsed time |\n"
-                    "| --- | --- | --- | --- |\n"
-                    "| _(prompt/completion)_ | _(prompt/completion)_ | _(US $)_ | _(seconds)_ |\n"
-                    f"| {c.gpt_tokens_prompt}/{c.gpt_tokens_completion} |"
-                    f"{c.native_tokens_prompt}/{c.native_tokens_completion} |"
-                    f"{c.cost:.10f} | {r.elapsed_time:.1f}s |"
-                )
-            )
-            st.info(r.response)
+    for model, llm_response in response.items():
+        with st.expander(f"{model.name} Response", expanded=True):
+            st.markdown(llm_response.response)
+            
+            # Show cost and stats if available
+            if model in cost_and_stats:
+                stats = cost_and_stats[model]
+                st.markdown("---")
+                st.markdown("**Cost and Statistics:**")
+                st.markdown(f"- Total Cost: ${stats.cost:.4f}")
+                st.markdown(f"- GPT Tokens (Prompt/Completion): {stats.gpt_tokens_prompt}/{stats.gpt_tokens_completion}")
+                st.markdown(f"- Native Tokens (Prompt/Completion): {stats.native_tokens_prompt}/{stats.native_tokens_completion}")
+                st.markdown(f"- Response Time: {stats.elapsed_time:.2f}s")
+            else:
+                st.markdown("---")
+                st.markdown("⚠️ Cost and statistics not available for this response")
 
 
 prepare_session_state()
@@ -151,7 +145,7 @@ if st.session_state.response:
     for model, response in st.session_state.response.items():
         response_json[model.name] = {
             "response": response.to_dict(),
-            "cost_and_stats": st.session_state.cost_and_stats[model].to_dict(),
+            "cost_and_stats": st.session_state.cost_and_stats.get(model, {}).to_dict() if model in st.session_state.cost_and_stats else None
         }
     response_json = json.dumps(response_json, indent=4)
     st.download_button(
