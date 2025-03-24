@@ -1,3 +1,14 @@
+# LLM Comparison Tool
+
+This is a fork of the [original LLM Comparison Tool](https://github.com/fau-masters-collected-works-cgarbin/llm-comparison-tool) with the following modifications:
+
+- Removed the privacy warning message and checkbox requirement
+- Improved error handling for OpenRouter API 404 responses
+- Enhanced the UI to show cost and statistics in a more readable format
+- Added graceful handling of missing cost and statistics in the JSON download
+
+For the original project documentation, see below.
+
 # Comparing large language models
 
 This project allows us to test prompts against multiple large language models and compare the results.
